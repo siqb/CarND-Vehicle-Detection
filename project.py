@@ -321,9 +321,13 @@ if __name__ == "__main__":
         output_clip.preview()
     
     elif mode != "test":
+        # For some reason video recording doesn't work with saved heat
+        # due to buffer underrun of hot_windows_saved
+        # I guess this must mean that preview() skips frames
+        vid_processor_obj.use_saved_heat = False
         video_output = 'output.mp4'
         clip1 = VideoFileClip("project_video.mp4")
-        output_clip = clip1.fl_image(call_pipeline)
+        output_clip = clip1.fl_image(vid_processor_obj.call_pipeline)
         output_clip.write_videofile(video_output, audio=False)
 
     if not vid_processor_obj.use_saved_heat:

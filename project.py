@@ -317,7 +317,7 @@ if __name__ == "__main__":
     #mode = "record" 
     if mode == "test":
         clip1 = VideoFileClip("project_video.mp4")
-        output_clip = clip1.fl_image(video_processor_obj.call_pipeline)
+        output_clip = clip1.fl_image(vid_processor_obj.call_pipeline)
         output_clip.preview()
     
     elif mode != "test":

@@ -19,94 +19,6 @@ import pygame
 # from sklearn.model_selection import train_test_split
 from sklearn.cross_validation import train_test_split
 
-def single_img_features(img, color_space='RGB', spatial_size=(32, 32),
-                        hist_bins=32, orient=9, 
-                        pix_per_cell=8, cell_per_block=2, hog_channel=0,
-                        spatial_feat=True, hist_feat=True, hog_feat=True):    
-
-    """
-    
-    # Define a function to extract features from a single image window
-    # This function is very similar to extract_features()
-    # just for a single image rather than list of images
-    
-    """
-
-    #1) Define an empty list to receive features
-    img_features = []
-    #2) Apply color conversion if other than 'RGB'
-    if color_space != 'RGB':
-        if color_space == 'HSV':
-            feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        elif color_space == 'LUV':
-            feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2LUV)
-        elif color_space == 'HLS':
-            feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
-        elif color_space == 'YUV':
-            feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
-        elif color_space == 'YCrCb':
-            feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
-    else: feature_image = np.copy(img)      
-    #3) Compute spatial features if flag is set
-    if spatial_feat == True:
-        spatial_features = bin_spatial(feature_image, size=spatial_size)
-        #4) Append features to list
-        img_features.append(spatial_features)
-    #5) Compute histogram features if flag is set
-    if hist_feat == True:
-        hist_features = color_hist(feature_image, nbins=hist_bins)
-        #6) Append features to list
-        img_features.append(hist_features)
-    #7) Compute HOG features if flag is set
-    if hog_feat == True:
-        if hog_channel == 'ALL':
-            hog_features = []
-            for channel in range(feature_image.shape[2]):
-                hog_features.extend(get_hog_features(feature_image[:,:,channel], 
-                                    orient, pix_per_cell, cell_per_block, 
-                                    vis=False, feature_vec=True))      
-        else:
-            hog_features = get_hog_features(feature_image[:,:,hog_channel], orient, 
-                        pix_per_cell, cell_per_block, vis=False, feature_vec=True)
-        #8) Append features to list
-        img_features.append(hog_features)
-
-    #9) Return concatenated array of features
-    return np.concatenate(img_features)
-
-# Define a function you will pass an image 
-# and the list of windows to be searched (output of slide_windows())
-def search_windows(img, windows, clf, scaler, color_space='RGB', 
-                    spatial_size=(32, 32), hist_bins=32, 
-                    hist_range=(0, 256), orient=9, 
-                    pix_per_cell=8, cell_per_block=2, 
-                    hog_channel=0, spatial_feat=True, 
-                    hist_feat=True, hog_feat=True,
-                    window_size=(64,64)):
-
-    #1) Create an empty list to receive positive detection windows
-    on_windows = []
-    #2) Iterate over all windows in the list
-    for window in windows:
-        #3) Extract the test window from original image
-        test_img = cv2.resize(img[window[0][1]:window[1][1], window[0][0]:window[1][0]], window_size)      
-        #4) Extract features for that window using single_img_features()
-        features = single_img_features(test_img, color_space=color_space, 
-                            spatial_size=spatial_size, hist_bins=hist_bins, 
-                            orient=orient, pix_per_cell=pix_per_cell, 
-                            cell_per_block=cell_per_block, 
-                            hog_channel=hog_channel, spatial_feat=spatial_feat, 
-                            hist_feat=hist_feat, hog_feat=hog_feat)
-        #5) Scale extracted features to be fed to classifier
-        test_features = scaler.transform(np.array(features).reshape(1, -1))
-        #6) Predict using your classifier
-        prediction = clf.predict(test_features)
-        #7) If positive (prediction == 1) then save the window
-        if prediction == 1:
-            on_windows.append(window)
-    #8) Return windows for positive detections
-    return on_windows
-
 class MyVideoProcessor(object):
 
     # constructor function
@@ -210,6 +122,99 @@ class MyVideoProcessor(object):
         with open('svc_pickle.p','wb') as file_pi:
             pickle.dump((self.svc, self.X_scaler), file_pi)
 
+    def search_windows(self, img, windows, clf, scaler, color_space='RGB', 
+                        spatial_size=(32, 32), hist_bins=32, 
+                        hist_range=(0, 256), orient=9, 
+                        pix_per_cell=8, cell_per_block=2, 
+                        hog_channel=0, spatial_feat=True, 
+                        hist_feat=True, hog_feat=True,
+                        window_size=(64,64)):
+    
+        """
+        
+        # Define a function you will pass an image 
+        # and the list of windows to be searched (output of slide_windows())
+        
+        """
+    
+        #1) Create an empty list to receive positive detection windows
+        on_windows = []
+        #2) Iterate over all windows in the list
+        for window in windows:
+            #3) Extract the test window from original image
+            test_img = cv2.resize(img[window[0][1]:window[1][1], window[0][0]:window[1][0]], window_size)      
+            #4) Extract features for that window using single_img_features()
+            features = self.single_img_features(test_img, color_space=color_space, 
+                                spatial_size=spatial_size, hist_bins=hist_bins, 
+                                orient=orient, pix_per_cell=pix_per_cell, 
+                                cell_per_block=cell_per_block, 
+                                hog_channel=hog_channel, spatial_feat=spatial_feat, 
+                                hist_feat=hist_feat, hog_feat=hog_feat)
+            #5) Scale extracted features to be fed to classifier
+            test_features = scaler.transform(np.array(features).reshape(1, -1))
+            #6) Predict using your classifier
+            prediction = clf.predict(test_features)
+            #7) If positive (prediction == 1) then save the window
+            if prediction == 1:
+                on_windows.append(window)
+        #8) Return windows for positive detections
+        return on_windows
+
+    def single_img_features(self, img, color_space='RGB', spatial_size=(32, 32),
+                            hist_bins=32, orient=9, 
+                            pix_per_cell=8, cell_per_block=2, hog_channel=0,
+                            spatial_feat=True, hist_feat=True, hog_feat=True):    
+    
+        """
+        
+        # Define a function to extract features from a single image window
+        # This function is very similar to extract_features()
+        # just for a single image rather than list of images
+        
+        """
+    
+        #1) Define an empty list to receive features
+        img_features = []
+        #2) Apply color conversion if other than 'RGB'
+        if color_space != 'RGB':
+            if color_space == 'HSV':
+                feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            elif color_space == 'LUV':
+                feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2LUV)
+            elif color_space == 'HLS':
+                feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2HLS)
+            elif color_space == 'YUV':
+                feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
+            elif color_space == 'YCrCb':
+                feature_image = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+        else: feature_image = np.copy(img)      
+        #3) Compute spatial features if flag is set
+        if spatial_feat == True:
+            spatial_features = bin_spatial(feature_image, size=spatial_size)
+            #4) Append features to list
+            img_features.append(spatial_features)
+        #5) Compute histogram features if flag is set
+        if hist_feat == True:
+            hist_features = color_hist(feature_image, nbins=hist_bins)
+            #6) Append features to list
+            img_features.append(hist_features)
+        #7) Compute HOG features if flag is set
+        if hog_feat == True:
+            if hog_channel == 'ALL':
+                hog_features = []
+                for channel in range(feature_image.shape[2]):
+                    hog_features.extend(get_hog_features(feature_image[:,:,channel], 
+                                        orient, pix_per_cell, cell_per_block, 
+                                        vis=False, feature_vec=True))      
+            else:
+                hog_features = get_hog_features(feature_image[:,:,hog_channel], orient, 
+                            pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+            #8) Append features to list
+            img_features.append(hog_features)
+    
+        #9) Return concatenated array of features
+        return np.concatenate(img_features)
+
     def pipeline_function(self, image):
         print("#####Entering main pipeline for frame#####")
         draw_image = np.copy(image)
@@ -220,7 +225,7 @@ class MyVideoProcessor(object):
             hot_windows = self.hot_windows_saved[self.frame_count]
             self.frame_count += 1
         else:
-            hot_windows = search_windows(image, self.windows, clf=self.svc, scaler=self.X_scaler, 
+            hot_windows = self.search_windows(image, self.windows, clf=self.svc, scaler=self.X_scaler, 
                                 color_space=self.color_space, 
                                 spatial_size=self.spatial_size, hist_bins=self.hist_bins, 
                                 orient=self.orient, pix_per_cell=self.pix_per_cell, 
@@ -262,22 +267,22 @@ class MyVideoProcessor(object):
             draw_image = image
         return draw_image
 
-def call_pipeline(image):
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_h:
-                vid_processor_obj.vis_mode["heat_view"] ^= True
-            elif event.key == pygame.K_m:
-                vid_processor_obj.vis_mode["map_view"] ^= True
-            elif event.key == pygame.K_w:
-                vid_processor_obj.vis_mode["window_view"] ^= True
-            elif event.key == pygame.K_d:
-                vid_processor_obj.vis_mode["detection_view"] ^= True
-            elif event.key == pygame.K_a:
-                vid_processor_obj.vis_mode["all_view"] ^= True
-            elif event.key == pygame.K_o:
-                vid_processor_obj.vis_mode["off_view"] ^= True
-    return vid_processor_obj.pipeline_function(image)
+    def call_pipeline(self,image):
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_h:
+                    vid_processor_obj.vis_mode["heat_view"] ^= True
+                elif event.key == pygame.K_m:
+                    vid_processor_obj.vis_mode["map_view"] ^= True
+                elif event.key == pygame.K_w:
+                    vid_processor_obj.vis_mode["window_view"] ^= True
+                elif event.key == pygame.K_d:
+                    vid_processor_obj.vis_mode["detection_view"] ^= True
+                elif event.key == pygame.K_a:
+                    vid_processor_obj.vis_mode["all_view"] ^= True
+                elif event.key == pygame.K_o:
+                    vid_processor_obj.vis_mode["off_view"] ^= True
+        return self.pipeline_function(image)
 
 if __name__ == "__main__":
     pygame.init() 
@@ -312,7 +317,7 @@ if __name__ == "__main__":
     #mode = "record" 
     if mode == "test":
         clip1 = VideoFileClip("project_video.mp4")
-        output_clip = clip1.fl_image(call_pipeline)
+        output_clip = clip1.fl_image(video_processor_obj.call_pipeline)
         output_clip.preview()
     
     elif mode != "test":

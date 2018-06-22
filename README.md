@@ -23,20 +23,92 @@ The goals / steps of this project are the following:
 [image7]: ./examples/output_bboxes.png
 [video1]: ./project_video.mp4
 
-
-
 ---
-### README
-
-#### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Vehicle-Detection/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
-
-You're reading it!
 
 ### Histogram of Oriented Gradients (HOG)
 
 #### 1. Explain how (and identify where in your code) you extracted HOG features from the training images.
 
-The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
+The idea here is as follows:
+
+1. Get an image from the set of training images
+2. Perform some data augmentation on the training set - this step is optional as it seems like many people have been able to get this project working without doing this but I found it helpful in reducing false detections
+3. Convert image colorspace to one that you feel will yield a lot of features
+4. Extract spatial features - resize each color channel of the input image to a predetermined size (this size is one of our tunable parameters) - append this feature to our main list of features 
+5. Extract histogram features - take a histogram of each color channel of the input image with a predetermined number of histogram bins (this is one of our tunable parameters) - append this feature to our main list of features
+6. Extarct HOG features - run the HOG algorithm on each color channel of the input image with predetermined parameters (`orient`, `pix_per_cell`, `cell_per_block` - these are tunable parameters) - append the features to our main list of features
+7. Return the final feature list
+
+The code for this step is starting at line 52 (line number subject to change) of the file called `lesson_functions.py`.
+
+```python
+def extract_features(imgs, color_space='RGB', spatial_size=(32, 32),
+                        hist_bins=32, orient=9, 
+                        pix_per_cell=8, cell_per_block=2, hog_channel=0,
+                        spatial_feat=True, hist_feat=True, hog_feat=True, notcar=False):
+    # Create a list to append feature vectors to
+    features = []
+    # Iterate through the list of images
+    np_images = []
+    for img in imgs:
+        # Read in each one by one
+        #image = mpimg.imread(file)
+        temp = cv2.imread(img)
+        np_images.append(temp)
+        if notcar:
+            np_images.append(cv2.flip(temp,1))
+            blur_shape = random.randint(1,15)
+            if blur_shape %2 == 0: blur_shape -= 1
+            blurred = cv2.GaussianBlur(temp, (blur_shape, blur_shape), 0)
+            np_images.append(blurred)
+            # Add noisy image
+            #for j in range(random.randint(1,10)):
+            noise = np.zeros_like(temp)
+            cv2.randn(noise,(random.randint(0,10)),(random.randint(15,25)))
+            noisy_img = temp+noise
+            np_images.append(noisy_img)
+    
+    for image in np_images:
+        # apply color conversion if other than 'RGB'
+        file_features = []
+        if color_space != 'RGB':
+            if color_space == 'HSV':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+            elif color_space == 'LUV':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2LUV)
+            elif color_space == 'HLS':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HLS)
+            elif color_space == 'YUV':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2YUV)
+            elif color_space == 'YCrCb':
+                feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2YCrCb)
+        else: feature_image = np.copy(image)      
+
+        if spatial_feat == True:
+            spatial_features = bin_spatial(feature_image, size=spatial_size)
+            file_features.append(spatial_features)
+        if hist_feat == True:
+            # Apply color_hist()
+            hist_features = color_hist(feature_image, nbins=hist_bins)
+            file_features.append(hist_features)
+        if hog_feat == True:
+        # Call get_hog_features() with vis=False, feature_vec=True
+            if hog_channel == 'ALL':
+                hog_features = []
+                for channel in range(feature_image.shape[2]):
+                    hog_features.append(get_hog_features(feature_image[:,:,channel], 
+                                        orient, pix_per_cell, cell_per_block, 
+                                        vis=False, feature_vec=True))
+                hog_features = np.ravel(hog_features)        
+            else:
+                hog_features = get_hog_features(feature_image[:,:,hog_channel], orient, 
+                            pix_per_cell, cell_per_block, vis=False, feature_vec=True)
+            # Append the new feature vector to the features list
+            file_features.append(hog_features)
+        features.append(np.concatenate(file_features))
+    # Return list of feature vectors
+    return features
+ ```
 
 I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
 
@@ -59,6 +131,10 @@ One of the most impactful changes was to use the `YUV` color space. Before makin
 
 YUV is a luma-chroma encoding scheme, meaning that color is deifined via one luminance value and two chrominance values.The Y component determines the brightness of the color (the luma), while the U and V components determine the color itself (the chroma). YUV is also in a way similar to human vision – the "black and white" information has more impact on the image for human eye than the color information. It's possible that some of the other luma-chroma schemes could have worked well. 
 
+##### Other Parameters
+
+My guiding philosophy for tuning the rest of the features was to try to keep them as small as possible while still maintaining good results. These parameters have a direct impact on training and inference speed and I didn't want to spend more time on these steps than necessary to produce a good result.
+
 #### Final Parameters
 
 This is the final set of HOG parameters which I used:
@@ -76,7 +152,17 @@ self.hist_bins = 8    # Number of histogram bins
 
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
-We need to ensure that all the features are normalized before training and we can use the `StandardScaler` in `sklearn` to do this.
+I created a `train` method inside my class for the video processor which is called by the `__init__` method only if a pickled SVM was not already found. This currently starts at line 69 of `project.py`. 
+
+The steps are:
+
+1. Check if a trained SVM already exists - if yes, no need to retrain
+2. If training is needed, extract features from car and non-car images
+3. Create a vector of features
+4. Create a vector of labels (1 if car, 0 if not car)
+5. Split these vectors into randomized training and test data sets using `sklearn`
+6. Ensure that all the features are normalized before training and we can use the `StandardScaler` in `sklearn` to do this.
+7. Fit a linear SVC on the trainin
 
 ### Sliding Window Search
 
@@ -106,14 +192,22 @@ Here are some example images:
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
 Here's a [link to my video result](./project_video.mp4)
 
+I am pretty satisfied with my result overall except for two things:
+
+1. One false negative - the bounding box around the white car disappears for just a couple seconds before the black car pulls up behind it. 
+2. One false positive - as the black car begins to pull ahead of the white car, my code encapsulates them in one big bounding box as if they were one vehicle rather than two distanct vehicles. This means that there is some false positive heat in the road space between the two cars. The box eventually splits in two once the black car pulls far ahead enough of the white car.
+
+I tried to tune this like crazy but couldn't fix it. I am planning on going back and trying it with a different luma-chroma color system to see if this makes any difference. 
+
+Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two sperate bounding boxes.
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
 The overall flow for detecting vehicles goes a little something like this:
 
 1. Run the HOG on all windows
-2. If a window is hot (meaning the SVM thinks it saw a vehicle in that window), save it to a list
-3. If enough overlapping windows are hot, the overlapping region gets even hotter - we ideally want it to be engulfed in flames!
+2. If a window is hot (meaning the SVM thinks it saw a vehicle in that window), save it to a list or queue
+3. Take the sum of all the heatmaps in the list/queue. If enough overlapping windows are hot, the overlapping region gets even hotter - we ideally want it to be engulfed in flames!
 4. Apply a heat threshold to filter out the less hot regions so we're only left with the scorching hot ones
 5. Now all the contiguously hot region "blobs" can be considered to be a vehicle - we call these blobs "labels"
 6. Take the pixels positions of a box surrounding the hot regions and use them to draw a bounding box in the original image

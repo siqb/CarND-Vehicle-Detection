@@ -23,6 +23,13 @@ The goals / steps of this project are the following:
 [image7]: ./examples/output_bboxes.png
 [video1]: ./project_video.mp4
 
+[image8]: ./pics/sliding_windows.PNG
+[image9]: ./pics/hot_windows.PNG
+[image10]: ./pics/heat_view.PNG
+[image11]: ./pics/big_bbox.PNG
+
+
+
 ---
 
 ### Histogram of Oriented Gradients (HOG)
@@ -118,7 +125,6 @@ I then explored different color spaces and different `skimage.hog()` parameters 
 
 Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
-
 ![alt text][image2]
 
 #### 2. Explain how you settled on your final choice of HOG parameters.
@@ -149,7 +155,6 @@ self.spatial_size = (8, 8) # Spatial binning dimensions
 self.hist_bins = 8    # Number of histogram bins
 ```
 
-
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
 I created a `train` method inside my class for the video processor which is called by the `__init__` method only if a pickled SVM was not already found. This currently starts at line 69 of `project.py`. 
@@ -176,15 +181,18 @@ Another issue that caused me much frustration was trying to detect vehciles on t
 
 Ultimatley, I settled on larger single scale 128x128 windows with 90% overlap in both the X and Y planes. I found this windows configuration to give me a good balance between FPS and ability to produce enough heat on true positives while negating false positives.
 
-![alt text][image3]
+![alt text][image8]
 
 #### 2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
+Ultimately I searched on a single scale using YUV 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
+
+To improve the performnce of the classfier, I augmented the dataset with some transform versions of the training data.
 
 Here are some example images:
 
 ![alt text][image4]
+
 ---
 
 ### Video Implementation
@@ -197,9 +205,14 @@ I am pretty satisfied with my result overall except for two things:
 1. One false negative - the bounding box around the white car disappears for just a couple seconds before the black car pulls up behind it. 
 2. One false positive - as the black car begins to pull ahead of the white car, my code encapsulates them in one big bounding box as if they were one vehicle rather than two distanct vehicles. This means that there is some false positive heat in the road space between the two cars. The box eventually splits in two once the black car pulls far ahead enough of the white car.
 
-I tried to tune this like crazy but couldn't fix it. I am planning on going back and trying it with a different luma-chroma color system to see if this makes any difference. 
+Here's a picture of the large bounding box.
 
-Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two sperate bounding boxes.
+![alt text][image11]
+
+I tried to tune these issues like crazy but couldn't fix it. I am planning on going back and trying it with a different luma-chroma color system to see if this makes any difference. 
+
+Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two seperate bounding boxes.
+
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 

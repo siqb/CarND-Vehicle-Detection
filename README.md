@@ -117,25 +117,31 @@ The overall flow for detecting vehicles goes a little something like this:
 2. If a window is hot (meaning the SVM thinks it saw a vehicle in that window), save it to a list
 3. If enough overlapping windows are hot, the overlapping region gets even hotter - we ideally want it to be engulfed in flames!
 4. Apply a heat threshold to filter out the less hot regions so we're only left with the scorching hot ones
-5. Now all the contiguously hot region "blobs" can be considered to be a vehicle
+5. Now all the contiguously hot region "blobs" can be considered to be a vehicle - we call these blobs "labels"
 6. Take the pixels positions of a box surrounding the hot regions and use them to draw a bounding box in the original image
 
 In a perfect world, this would be enough...but then again in a perfect wrold, cars would already be driving themselves too. The issue is that false positives still pop up. A false positive is a box around anything that is _not_ a vehicle.
 
-Lucky for me, by the time I had got to this point, I had tuned my HOG parameters and window sizes such that I had minimal false positives. The ones that remained had relatively **small** bounding boxes in comparison to the bounding boxes around the true positives. All I had to do to get rid of these small false positives was to calculate the area (width x height) of each bounding box before drawing it and only keep the boxes that were of a minimum size. I found 2000 pixels squared to be a good threshold. After doing this, no more false positives in my output! Here's the code - super simple:
+Lucky for me, by the time I had got to this point, I had tuned my HOG parameters and window sizes such that I had minimal false positives. The ones that remained had relatively **small** bounding boxes in comparison to the bounding boxes around the true positives. All I had to do to get rid of these small false positives was to calculate the area (width x height) of each bounding box before drawing it and only keep the boxes that were of a minimum size. I found 2000 pixels squared to be a good threshold. After doing this, no more false positives in my output! 
 
 ```python
-def draw_labeled_bboxes(img, labels, old_boxes):
-  ....
-  ....
-  ....
-        # Draw the box on the image
-        area = (bbox[1][0] - bbox[0][0])*(bbox[1][1] - bbox[0][1])
-        if area > 2000:
-            cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
-            bboxes[car_number]=bbox
-    # Return the image
-    return img, bboxes
+# Draw the box on the image
+area = (bbox[1][0] - bbox[0][0])*(bbox[1][1] - bbox[0][1])
+if area > 2000:
+    cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
+    bboxes[car_number]=bbox
+```
+
+Also, I was able to make my bounding boxes smooth and not jittery by averaging the vertex positions of the last frame's bounding box for each vehicle with the current frame's bounding box vertices.
+
+```python
+if car_number in old_boxes:
+    bbox = (
+            ((np.min(nonzerox)+old_boxes[car_number][0][0])//2, (np.min(nonzeroy)+old_boxes[car_number][0][1])//2),
+            ((np.max(nonzerox+old_boxes[car_number][1][0])//2), (np.max(nonzeroy)+old_boxes[car_number][1][1])//2)
+    )
+else:
+    bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
 ```
 
 ### Here are six frames and their corresponding heatmaps:
@@ -160,11 +166,15 @@ Here I'll talk about the approach I took, what techniques I used, what worked an
 
 ##### Pain Points
 
-Like the projects before this one, this pipeline is hardly robust. All the same reasons that I have already yammered on about (lighting conditions, road conditions, curvature, etc) in previous write ups also apply here. 
+Like the projects before this one, this pipeline is hardly robust. All the same reasons that I have already yammered on about (lighting conditions, road conditions, curvature, etc) in previous write ups also apply here. I guess the unique thing in this project is the issue of defining a good region of interest. For example, what if the car is driving up or down a steep hill in a place like San Francisco? Then the ROI would need to be extended upwards into what normally would be considered the sky. What if the car is standing stationary at the peak of a hill looking downwards? Then the ROI would need to be cut down drastically or else we risk getting false positives from clouds that look like cars and driving off a cliff! Maybe that's a bit dramatic but you get the idea. Part of the answer to this problem is that perception is not the entirety of autonomous driving. There is HD mapping, localization, path planning, and sensor diversity and fusion which also play a part in averting disaster. 
 
 ##### Processing Speed
 
 I've said it before and I'll say it again - the biggest problem in this lab exercise was the slow processing time! It all seems so easy in retrospect but when you're starting off, you have no idea what you're doing and just want to go through the process of trial and error (and least I did). The SVM/HOG is not a technique which lends itself easily to trial and error addicts like me. One technique I used which did help speed things up a little bit was to cache my SVM and hot windows in a pickle file. This was useful once I got to the point where I was fine tuning the process of filtering my heat maps. However it was not useful for tuning HOG parameters or sliding windows sizes since altering those requires regenrating the SVM and hot windows.
+
+##### Debug Visualizations
+
+The thing that helped me understand the theory of what was going on under the hood and helped me fine tune my piepline the most was the alternative debug visualizations which I created. I made a bunch of hotkeys that would dynamically toggle the sliding windows, hot windows, and heatmaps on the live streaming video. These were a life saver for me.
 
 ##### Shoulda', Coulda', Woulda' Used a CNN
 

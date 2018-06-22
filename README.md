@@ -249,17 +249,24 @@ else:
     bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
 ```
 
-### Here are six frames and their corresponding heatmaps:
+### Here are is an example of the heatmaps queue summed up over 10 frames:
 
-![alt text][image5]
+![alt text][image10]
 
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
+You can see that the pixels are quite hot. This is due to the sliding windows overlap that I chose (90% in X and Y directions) and also the fact that I chose to add and extra heat value to pixels that already have previous heat in them so as to make the hot regions stand out better. This is what I am talking about. Notice the extra lines to make alread hot pixel even hotter.
 
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
-
-
+```python
+def add_heat(heatmap, bbox_list):
+    # Iterate through list of bboxes
+    for box in bbox_list:
+        # Add += 1 for all pixels inside each bbox
+        # Assuming each "box" takes the form ((x1, y1), (x2, y2))
+        heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
+        if np.max(heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]]) > 1:
+            heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
+    # Return updated heatmap
+    return heatmap# Iterate through list of bboxes
+```
 
 ---
 

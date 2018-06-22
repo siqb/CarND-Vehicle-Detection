@@ -23,11 +23,10 @@ The goals / steps of this project are the following:
 [image7]: ./examples/output_bboxes.png
 [video1]: ./project_video.mp4
 
-## [Rubric](https://review.udacity.com/#!/rubrics/513/view) Points
-### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
+
 
 ---
-### Writeup / README
+### README
 
 #### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Vehicle-Detection/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
 
@@ -38,9 +37,6 @@ You're reading it!
 #### 1. Explain how (and identify where in your code) you extracted HOG features from the training images.
 
 The code for this step is contained in the first code cell of the IPython notebook (or in lines # through # of the file called `some_file.py`).  
-
-
-
 
 I started by reading in all the `vehicle` and `non-vehicle` images.  Here is an example of one of each of the `vehicle` and `non-vehicle` classes:
 
@@ -55,10 +51,15 @@ Here is an example using the `YCrCb` color space and HOG parameters of `orientat
 
 #### 2. Explain how you settled on your final choice of HOG parameters.
 
-I tried various combinations of parameters and...
-This was a very difficult step. There were many different parameters to tune to be random about it
+I tried various combinations of parameters to get the right ones. This was a very difficult and time consuming step. There were many different parameters to tune to be random about it. Getting these parameters right is critical in avoiding false positives and false negatives.
 
-One of the most impactful changes was to use the `YUV` color space. Before making this change, I found it very hard to detect the white car. I noticed that there were some hot windows even using the default color space but they was not enough heat around the white car to be able to detect it while simultaneously rejecting false positives.
+##### Colorspace
+
+One of the most impactful changes was to use the `YUV` color space. Before making this change, I found it very hard to detect the white car. I noticed that there were some hot windows even using the default color space but they was not enough heat around the white car to be able to detect it while simultaneously rejecting false positives. The white car is that it is very bright and stands out in the Y channel.
+
+YUV is a luma-chroma encoding scheme, meaning that color is deifined via one luminance value and two chrominance values.The Y component determines the brightness of the color (the luma), while the U and V components determine the color itself (the chroma). YUV is also in a way similar to human vision – the "black and white" information has more impact on the image for human eye than the color information. It's possible that some of the other luma-chroma schemes could have worked well. 
+
+#### Final Parameters
 
 This is the final set of HOG parameters which I used:
 
@@ -75,10 +76,7 @@ self.hist_bins = 8    # Number of histogram bins
 
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
-I trained a linear SVM using...
-
-
-
+We need to ensure that all the features are normalized before training and we can use the `StandardScaler` in `sklearn` to do this.
 
 ### Sliding Window Search
 

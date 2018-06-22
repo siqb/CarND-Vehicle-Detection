@@ -49,7 +49,7 @@ def draw_labeled_bboxes(img, labels, old_boxes):
             bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
         # Draw the box on the image
         area = (bbox[1][0] - bbox[0][0])*(bbox[1][1] - bbox[0][1])
-        if area > 2000:
+        if area > 2500:
             cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
             bboxes[car_number]=bbox
     # Return the image

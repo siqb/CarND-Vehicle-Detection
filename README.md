@@ -77,6 +77,9 @@ self.hist_bins = 8    # Number of histogram bins
 
 I trained a linear SVM using...
 
+
+
+
 ### Sliding Window Search
 
 #### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
@@ -119,7 +122,21 @@ The overall flow for detecting vehicles goes a little something like this:
 
 In a perfect world, this would be enough...but then again in a perfect wrold, cars would already be driving themselves too. The issue is that false positives still pop up. A false positive is a box around anything that is _not_ a vehicle.
 
-Lucky for me, by the time I had got to this point, I had tuned my HOG parameters and window sizes such that I had minimal false positives. The ones that remained had relatively **small** bounding boxes in comparison to the bounding boxes around the true positives. All I had to do to get rid of these small false positives was to calculate the area (width x height) of each bounding box before drawing it and only keep the boxes that were of a minimum size. I found 2000 pixels squared to be a good threshold. After doing this, no more false positives in my output!
+Lucky for me, by the time I had got to this point, I had tuned my HOG parameters and window sizes such that I had minimal false positives. The ones that remained had relatively **small** bounding boxes in comparison to the bounding boxes around the true positives. All I had to do to get rid of these small false positives was to calculate the area (width x height) of each bounding box before drawing it and only keep the boxes that were of a minimum size. I found 2000 pixels squared to be a good threshold. After doing this, no more false positives in my output! Here's the code - super simple:
+
+```python
+def draw_labeled_bboxes(img, labels, old_boxes):
+  ....
+  ....
+  ....
+        # Draw the box on the image
+        area = (bbox[1][0] - bbox[0][0])*(bbox[1][1] - bbox[0][1])
+        if area > 2000:
+            cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
+            bboxes[car_number]=bbox
+    # Return the image
+    return img, bboxes
+```
 
 ### Here are six frames and their corresponding heatmaps:
 
@@ -137,11 +154,23 @@ Lucky for me, by the time I had got to this point, I had tuned my HOG parameters
 
 ### Discussion
 
-#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+#### Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
 Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
 
-I've said it before and I'll say it again - the biggest problem in this lab exercise was the slow processing time! It all seems so easy in retrospect but when you're starting off, you have no idea what you're doing and just want to go through the process of trial and error (and least I did). The SVM/HOG is not a technique which lends itself easily to trial and error addicts like me.
+##### Pain Points
 
-To speed things up, I would go back an implement this lab with a CNN instead of using an SVM to extract HOG features.
+Like the projects before this one, this pipeline is hardly robust. All the same reasons that I have already yammered on about (lighting conditions, road conditions, curvature, etc) in previous write ups also apply here. 
+
+##### Processing Speed
+
+I've said it before and I'll say it again - the biggest problem in this lab exercise was the slow processing time! It all seems so easy in retrospect but when you're starting off, you have no idea what you're doing and just want to go through the process of trial and error (and least I did). The SVM/HOG is not a technique which lends itself easily to trial and error addicts like me. One technique I used which did help speed things up a little bit was to cache my SVM and hot windows in a pickle file. This was useful once I got to the point where I was fine tuning the process of filtering my heat maps. However it was not useful for tuning HOG parameters or sliding windows sizes since altering those requires regenrating the SVM and hot windows.
+
+##### Shoulda', Coulda', Woulda' Used a CNN
+
+To speed things up, I would go back an implement this lab with a CNN instead of using an SVM to extract HOG features. The high level technique would have been the same which is to run the network over sliding windows and to aggregate the output. However, inference time would have been much less, training less complicated, and accuracy much higher. There are some networks out there like YOLO (You Only Look Once) which do simultaneous detection and localization but I don't know much about that technique...yet.
+
+I honestly kind of wish I just used a CNN in the first place because it is more practical anyways. I was reading somewhere that Dr. Andrej Karpathy (the Yoda of CNNs) himself even says that using HOG for this purpose is so outdated that it is only studied to gain historical context (or however he said it). That means that although this lesson was tremendously enriching, it was still just a _bit_ irrelevant to have to learn so much about the HOG. But I digress....
+
+
 

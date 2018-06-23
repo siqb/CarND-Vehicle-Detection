@@ -211,7 +211,6 @@ I tried to tune these issues like crazy but couldn't fix it. I am planning on go
 
 Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two seperate bounding boxes.
 
-
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
 The overall flow for detecting vehicles goes a little something like this:
@@ -247,7 +246,7 @@ else:
     bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
 ```
 
-### Here are is an example of the heatmaps queue summed up over 10 frames:
+### Here are is an example of the heatmaps queue summed up over 60 frames:
 
 ![alt text][image10]
 
@@ -291,6 +290,3 @@ The thing that helped me understand the theory of what was going on under the ho
 To speed things up, I would go back an implement this lab with a CNN instead of using an SVM to extract HOG features. The high level technique would have been the same which is to run the network over sliding windows and to aggregate the output. However, inference time would have been much less, training less complicated, and accuracy much higher. There are some networks out there like YOLO (You Only Look Once) which do simultaneous detection and localization but I don't know much about that technique...yet.
 
 I honestly kind of wish I just used a CNN in the first place because it is more practical anyways. I was reading somewhere that Dr. Andrej Karpathy (the Yoda of CNNs) himself even says that using HOG for this purpose is so outdated that it is only studied to gain historical context (or however he said it). That means that although this lesson was tremendously enriching, it was still just a _bit_ irrelevant to have to learn so much about the HOG. But I digress....
-
-
-

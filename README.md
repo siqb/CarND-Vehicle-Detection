@@ -187,11 +187,9 @@ Ultimatley, I settled on larger single scale 128x128 windows with 90% overlap in
 
 Ultimately I searched on a single scale using YUV 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
 
-To improve the performnce of the classfier, I augmented the dataset with some transform versions of the training data.
+To improve the performnce of the classfier, I augmented the dataset with some transform versions of the training data. Here is an exmaple image which shows how the classification takes place. The classifier runs over each sliding window one by one, hot ones get highlighted in red and are queued up over ten frames, and the aggregated heatmap gets turned into a detection in the regions where its hot enough.
 
-Here are some example images:
-
-![alt text][image4]
+![alt text][image9]
 
 ---
 

@@ -141,7 +141,7 @@ YUV is a luma-chroma encoding scheme, meaning that color is deifined via one lum
 
 My guiding philosophy for tuning the rest of the features was to try to keep them as small as possible while still maintaining good results. These parameters have a direct impact on training and inference speed and I didn't want to spend more time on these steps than necessary to produce a good result.
 
-#### Final Parameters
+##### Final Parameters
 
 This is the final set of HOG parameters which I used:
 
@@ -246,7 +246,7 @@ else:
     bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
 ```
 
-### Here are is an example of the heatmaps queue summed up over 60 frames:
+**Here  is an example of the heatmaps queue summed up over 60 frames**
 
 ![alt text][image10]
 

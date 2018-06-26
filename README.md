@@ -23,6 +23,13 @@ The goals / steps of this project are the following:
 [image7]: ./examples/output_bboxes.png
 [video1]: ./project_video.mp4
 
+[image8]: ./pics/sliding_windows.PNG
+[image9]: ./pics/hot_windows.PNG
+[image10]: ./pics/heat_view.PNG
+[image11]: ./pics/big_bbox.PNG
+
+
+
 ---
 
 ### Histogram of Oriented Gradients (HOG)
@@ -118,7 +125,6 @@ I then explored different color spaces and different `skimage.hog()` parameters 
 
 Here is an example using the `YCrCb` color space and HOG parameters of `orientations=8`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
-
 ![alt text][image2]
 
 #### 2. Explain how you settled on your final choice of HOG parameters.
@@ -135,7 +141,7 @@ YUV is a luma-chroma encoding scheme, meaning that color is deifined via one lum
 
 My guiding philosophy for tuning the rest of the features was to try to keep them as small as possible while still maintaining good results. These parameters have a direct impact on training and inference speed and I didn't want to spend more time on these steps than necessary to produce a good result.
 
-#### Final Parameters
+##### Final Parameters
 
 This is the final set of HOG parameters which I used:
 
@@ -148,7 +154,6 @@ self.hog_channel = "ALL" # Can be 0, 1, 2, or "ALL"
 self.spatial_size = (8, 8) # Spatial binning dimensions
 self.hist_bins = 8    # Number of histogram bins
 ```
-
 
 #### 3. Describe how (and identify where in your code) you trained a classifier using your selected HOG features (and color features if you used them).
 
@@ -176,15 +181,16 @@ Another issue that caused me much frustration was trying to detect vehciles on t
 
 Ultimatley, I settled on larger single scale 128x128 windows with 90% overlap in both the X and Y planes. I found this windows configuration to give me a good balance between FPS and ability to produce enough heat on true positives while negating false positives.
 
-![alt text][image3]
+![alt text][image8]
 
 #### 2. Show some examples of test images to demonstrate how your pipeline is working.  What did you do to optimize the performance of your classifier?
 
-Ultimately I searched on two scales using YCrCb 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
+Ultimately I searched on a single scale using YUV 3-channel HOG features plus spatially binned color and histograms of color in the feature vector, which provided a nice result.  
 
-Here are some example images:
+To improve the performnce of the classfier, I augmented the dataset with some transform versions of the training data. Here is an exmaple image which shows how the classification takes place. The classifier runs over each sliding window one by one, hot ones get highlighted in red and are queued up over ten frames, and the aggregated heatmap gets turned into a detection in the regions where its hot enough.
 
-![alt text][image4]
+![alt text][image9]
+
 ---
 
 ### Video Implementation
@@ -197,9 +203,13 @@ I am pretty satisfied with my result overall except for two things:
 1. One false negative - the bounding box around the white car disappears for just a couple seconds before the black car pulls up behind it. 
 2. One false positive - as the black car begins to pull ahead of the white car, my code encapsulates them in one big bounding box as if they were one vehicle rather than two distanct vehicles. This means that there is some false positive heat in the road space between the two cars. The box eventually splits in two once the black car pulls far ahead enough of the white car.
 
-I tried to tune this like crazy but couldn't fix it. I am planning on going back and trying it with a different luma-chroma color system to see if this makes any difference. 
+Here's a picture of the large bounding box.
 
-Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two sperate bounding boxes.
+![alt text][image11]
+
+I tried to tune these issues like crazy but couldn't fix it. I am planning on going back and trying it with a different luma-chroma color system to see if this makes any difference. 
+
+Another possible method to fix the large bounding box might be to specify a maximum pixel width for heatmaps/boxes. For any heatmap that exceeds this maximum, split it in two and zero out the middle pixels. This way, it would get picked up as two seperate labels and thus get two seperate bounding boxes.
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
@@ -236,17 +246,24 @@ else:
     bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
 ```
 
-### Here are six frames and their corresponding heatmaps:
+**Here  is an example of the heatmaps queue summed up over 60 frames**
 
-![alt text][image5]
+![alt text][image10]
 
-### Here is the output of `scipy.ndimage.measurements.label()` on the integrated heatmap from all six frames:
-![alt text][image6]
+You can see that the pixels are quite hot. This is due to the sliding windows overlap that I chose (90% in X and Y directions) and also the fact that I chose to add and extra heat value to pixels that already have previous heat in them so as to make the hot regions stand out better. This is what I am talking about. Notice the extra lines to make alread hot pixel even hotter.
 
-### Here the resulting bounding boxes are drawn onto the last frame in the series:
-![alt text][image7]
-
-
+```python
+def add_heat(heatmap, bbox_list):
+    # Iterate through list of bboxes
+    for box in bbox_list:
+        # Add += 1 for all pixels inside each bbox
+        # Assuming each "box" takes the form ((x1, y1), (x2, y2))
+        heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
+        if np.max(heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]]) > 1:
+            heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
+    # Return updated heatmap
+    return heatmap# Iterate through list of bboxes
+```
 
 ---
 
@@ -273,6 +290,3 @@ The thing that helped me understand the theory of what was going on under the ho
 To speed things up, I would go back an implement this lab with a CNN instead of using an SVM to extract HOG features. The high level technique would have been the same which is to run the network over sliding windows and to aggregate the output. However, inference time would have been much less, training less complicated, and accuracy much higher. There are some networks out there like YOLO (You Only Look Once) which do simultaneous detection and localization but I don't know much about that technique...yet.
 
 I honestly kind of wish I just used a CNN in the first place because it is more practical anyways. I was reading somewhere that Dr. Andrej Karpathy (the Yoda of CNNs) himself even says that using HOG for this purpose is so outdated that it is only studied to gain historical context (or however he said it). That means that although this lesson was tremendously enriching, it was still just a _bit_ irrelevant to have to learn so much about the HOG. But I digress....
-
-
-

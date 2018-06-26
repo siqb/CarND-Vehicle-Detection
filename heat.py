@@ -23,8 +23,6 @@ def add_heat(heatmap, bbox_list):
         if np.max(heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]]) > 1:
             heatmap[box[0][1]:box[1][1], box[0][0]:box[1][0]] += 1
     # Return updated heatmap
-    print("return from add_heat")
-    #print(heatmap)
     return heatmap# Iterate through list of bboxes
     
 def apply_threshold(heatmap, threshold):
@@ -49,7 +47,7 @@ def draw_labeled_bboxes(img, labels, old_boxes):
             bbox = ((np.min(nonzerox), np.min(nonzeroy)), (np.max(nonzerox), np.max(nonzeroy)))
         # Draw the box on the image
         area = (bbox[1][0] - bbox[0][0])*(bbox[1][1] - bbox[0][1])
-        if area > 2500:
+        if area > 20000:
             cv2.rectangle(img, bbox[0], bbox[1], (0,0,255), 6)
             bboxes[car_number]=bbox
     # Return the image
